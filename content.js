@@ -82,13 +82,24 @@ function makeButton(amount) {
   return btn;
 }
 
-// Block toolbar clicks from reaching the player
-toolbar.addEventListener("click", (e) => e.stopPropagation());
-toolbar.addEventListener("mousedown", (e) => e.stopPropagation());
-toolbar.addEventListener("mouseup", (e) => e.stopPropagation());
+// Block toolbar clicks from reaching the player AND reset hide timer
+toolbar.addEventListener("click", (e) => {
+  e.stopPropagation();
+  resetHideTimer();
+});
+
+toolbar.addEventListener("mousedown", (e) => {
+  e.stopPropagation();
+  resetHideTimer();
+});
+
+toolbar.addEventListener("mouseup", (e) => {
+  e.stopPropagation();
+});
 
 // ── Skip logic ──
 function skipTime(amount) {
+  resetHideTimer();
   if (activeVideo && !activeVideo.isConnected) {
     activeVideo.removeEventListener("timeupdate", updateTimeDisplay);
     activeVideo = findVideo(document.fullscreenElement);
@@ -153,4 +164,29 @@ document.addEventListener("fullscreenchange", () => {
       toolbar.parentNode.removeChild(toolbar);
     }
   }
+
+});
+
+// ── Sizing Logic & Zoom Correction ──
+let currentBaseScale = 1.0;
+
+function applyScale(baseScale) {
+  currentBaseScale = baseScale;
+  
+  const correctedScale = baseScale / window.devicePixelRatio;
+  const inverseWidth = 100 / correctedScale;
+  
+  toolbar.style.transform = `scale(${correctedScale})`;
+  toolbar.style.width = `${inverseWidth}%`;
+}
+chrome.storage.local.get({ scale: 1.0 }, (data) => {
+  applyScale(data.scale);
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.scale) {
+    applyScale(changes.scale.newValue);
+  }
+});
+window.addEventListener("resize", () => {
+  applyScale(currentBaseScale);
 });
