@@ -3,6 +3,10 @@
   "name": "SkipBar",
   "version": "0.1.0",
   "description": "Skip forward or back with one click in fullscreen video.",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
