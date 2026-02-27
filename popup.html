@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 15px;
+        width: 250px;
+        background: #1e1e1e;
+        color: #fff;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      input[type="range"] {
+        width: 100%;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <label for="scale">SkipBar Size: <span id="scale-val">1.0</span>x</label>
+      <input type="range" id="scale" min="0.5" max="2.0" step="0.1" />
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
