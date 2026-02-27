@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "SkipBar",
+  "version": "0.1.0",
+  "description": "Skip forward or back with one click in fullscreen video.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["style.css"]
+    }
+  ]
+}
