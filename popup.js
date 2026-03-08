@@ -1,15 +1,13 @@
 const slider = document.getElementById("scale");
 const label = document.getElementById("scale-val");
 
-// Load saved scale
 chrome.storage.local.get({ scale: 1.0 }, (data) => {
   slider.value = data.scale;
-  label.innerText = data.scale;
+  label.textContent = Number(data.scale).toFixed(1);
 });
 
-// Update label and save on drag
 slider.addEventListener("input", (e) => {
-  const val = e.target.value;
-  label.innerText = val;
-  chrome.storage.local.set({ scale: parseFloat(val) });
+  const val = Number(e.target.value);
+  label.textContent = val.toFixed(1);
+  chrome.storage.local.set({ scale: val });
 });
