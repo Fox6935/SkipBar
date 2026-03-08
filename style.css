@@ -1,23 +1,38 @@
 #time-skipper-toolbar {
+  --skipper-scale: 1;
+
   position: fixed;
-  top: -90px;
-  left: 0;
+  top: 0;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100vw - 24px);
   height: 85px;
+  padding: 0 22px;
+  box-sizing: border-box;
+
   background: rgba(15, 15, 15, 0.85);
   backdrop-filter: blur(6px);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 18px;
+
   z-index: 2147483647;
-  transition: top 0.2s ease-in-out, transform 0.2s;
-  transform-origin: top left;
+  transition: transform 0.2s ease-in-out;
+  transform-origin: top center;
+  transform: translateX(-50%) translateY(calc(-100% - 6px))
+    scale(var(--skipper-scale));
+
   font-family: sans-serif;
   user-select: none;
+  white-space: nowrap;
 }
 
 #time-skipper-toolbar.visible {
-  top: 0;
+  transform: translateX(-50%) translateY(0) scale(var(--skipper-scale));
 }
 
 .skipper-group {
