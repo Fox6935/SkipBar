@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SkipBar",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Skip forward or back with one click in fullscreen video.",
   "permissions": ["storage"],
   "action": {
@@ -11,7 +11,8 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["style.css"]
+      "css": ["style.css"],
+      "all_frames": true
     }
   ]
 }
