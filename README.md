@@ -9,6 +9,12 @@ If you control your PC from the couch with just a mouse, scrubbing through long-
 - **Auto-Hiding UI:** Move your mouse to the top edge of the screen to reveal the toolbar. It hides automatically after 15 seconds or when you move the mouse away.
 - **Smart Video Detection:** Pierces through Shadow DOMs to find the underlying `<video>` element, making it compatible with complex custom web players.
 - **One-Click Skips:** Buttons for `-60s`, `-30s`, `-10s`, `-5s` and `+5s`, `+10s`, `+30s`, `+60s`.
+- Adding more skip buttons or changing the time increments is as simple as adding or changing the values in this code in content.js:
+```js
+const backSkips = [-60, -30, -10, -5];
+const fwdSkips = [5, 10, 30, 60];
+```
+
 
 ## Installation (Unpacked)
 
