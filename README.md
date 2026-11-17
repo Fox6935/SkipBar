@@ -18,7 +18,7 @@ const fwdSkips = [5, 10, 30, 60];
 
 ## Installation (Unpacked)
 
-Since this is a personal extension, you can install it manually in Chromium-based browsers (Chrome, Edge, Brave, etc.):
+Since this is a personal extension, you can install it manually in Chromium-based browsers supporting Chrome 114 or newer (Chrome, Edge, Brave, etc.):
 
 1. Download or clone this repository to your local machine.
 2. Open your browser and go to the extensions page (`chrome://extensions/` or `edge://extensions/`).
@@ -31,6 +31,8 @@ Since this is a personal extension, you can install it manually in Chromium-base
 1. Play a video on any website and enter Fullscreen mode.
 2. Move your cursor to the top of the screen to reveal the SkipBar toolbar.
 3. Click to skip around!
+
+Use the extension popup to adjust the toolbar size. After editing the extension, reload it on the browser's extensions page and refresh video tabs.
 
 ## License
 
