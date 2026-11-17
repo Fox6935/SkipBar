@@ -2,6 +2,8 @@
 let activeVideo = null;
 let hideTimeout = null;
 let currentBaseScale = 1.0;
+let nativeVideoFullscreen = false;
+let touchButton = null;
 
 const HIDE_DELAY_MS = 15000;
 const SHOW_ZONE_Y = 90;
@@ -56,6 +58,20 @@ function formatTime(seconds) {
 // ── Build toolbar ──
 const toolbar = document.createElement("div");
 toolbar.id = "time-skipper-toolbar";
+toolbar.setAttribute("popover", "manual");
+toolbar.setAttribute("role", "toolbar");
+toolbar.setAttribute("aria-label", "Video skip controls");
+
+// A popover enters the browser's top layer, even when <video> is fullscreen.
+// Isolate its styles from the page. Native video has no rendered child subtree,
+// so its overlay lives outside it and routes pointer input by hit testing.
+const toolbarHost = document.createElement("div");
+const toolbarRoot = toolbarHost.attachShadow({ mode: "open" });
+const stylesheet = document.createElement("link");
+stylesheet.rel = "stylesheet";
+stylesheet.href = chrome.runtime.getURL("style.css");
+stylesheet.addEventListener("load", () => applyScale(currentBaseScale));
+toolbarRoot.append(stylesheet, toolbar);
 
 const backGroup = document.createElement("div");
 backGroup.className = "skipper-group";
@@ -89,28 +105,65 @@ function makeButton(amount) {
   return btn;
 }
 
-// Block toolbar interaction from reaching the player
-toolbar.addEventListener("click", (e) => {
-  e.stopPropagation();
+// Intercept before document/player capture listeners. Handle clicks here because
+// stopping propagation at window also prevents the toolbar's own listeners.
+function handleToolbarInteraction(e) {
+  const path = e.composedPath();
+  const hit = hitTestToolbar(e);
+  if (!path.includes(toolbar) && !hit.inside) return;
+
+  e.stopImmediatePropagation();
   resetHideTimer();
 
-  const target = e.target instanceof Element ? e.target : null;
-  const button = target?.closest(".skipper-btn");
-  if (!button) return;
+  const button = path.find(
+    (node) => node instanceof Element && node.matches(".skipper-btn")
+  ) || hit.button;
+  if (e.type === "keydown" || e.type === "keyup") {
+    if (button && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      if ((e.key === "Enter" && e.type === "keydown") ||
+          (e.key === " " && e.type === "keyup")) {
+        skipTime(Number(button.dataset.skip));
+      }
+    }
+    return;
+  }
+  if (e.cancelable) e.preventDefault();
 
-  e.preventDefault();
-  skipTime(Number(button.dataset.skip));
-});
+  if (e.type === "touchstart") touchButton = button;
+  // Touch defaults are canceled, so handle the tap here instead of waiting for
+  // a synthesized mouse click. This also avoids seeking twice on touchscreens.
+  if (e.type === "click" || (e.type === "touchend" && button === touchButton)) {
+    if (button) skipTime(Number(button.dataset.skip));
+  }
+  if (e.type === "touchend" || e.type === "touchcancel") touchButton = null;
+}
 
-toolbar.addEventListener("mousedown", (e) => {
-  e.stopPropagation();
-  resetHideTimer();
-});
+function hitTestToolbar(e) {
+  if (!nativeVideoFullscreen || !toolbar.classList.contains("visible")) {
+    return { inside: false, button: null };
+  }
+  const point = e.touches?.[0] || e.changedTouches?.[0] || e;
+  const contains = (rect) => point.clientX >= rect.left &&
+    point.clientX <= rect.right && point.clientY >= rect.top &&
+    point.clientY <= rect.bottom;
+  const inside = contains(toolbar.getBoundingClientRect());
+  const button = inside ? [...toolbar.querySelectorAll(".skipper-btn")].find(
+    (candidate) => contains(candidate.getBoundingClientRect())
+  ) : null;
+  return { inside, button };
+}
 
-toolbar.addEventListener("mouseup", (e) => {
-  e.stopPropagation();
-  resetHideTimer();
-});
+for (const type of [
+  "pointerdown", "pointerup", "pointercancel", "mousedown", "mouseup",
+  "click", "dblclick", "auxclick", "contextmenu", "touchstart", "touchend", "touchcancel",
+  "keydown", "keyup",
+]) {
+  window.addEventListener(type, handleToolbarInteraction, {
+    capture: true,
+    passive: false,
+  });
+}
 
 // ── Video management ──
 function setActiveVideo(video) {
@@ -133,8 +186,8 @@ function setActiveVideo(video) {
 function skipTime(amount) {
   resetHideTimer();
 
-  if (activeVideo && !activeVideo.isConnected) {
-    setActiveVideo(findVideo(document.fullscreenElement));
+  if (!activeVideo || !activeVideo.isConnected) {
+    setActiveVideo(findVideo(getFullscreenElement()));
   }
 
   if (!activeVideo) return;
@@ -165,6 +218,13 @@ function resetHideTimer() {
 }
 
 function showToolbar() {
+  if (!activeVideo || !activeVideo.isConnected) {
+    setActiveVideo(findVideo(getFullscreenElement()));
+  }
+  if (!activeVideo) {
+    hideToolbar();
+    return;
+  }
   toolbar.classList.add("visible");
   resetHideTimer();
 }
@@ -180,6 +240,14 @@ function hideToolbar(clearTimer = true) {
 
 // ── Show/hide with hysteresis ──
 function handleMouseMove(e) {
+  const hit = hitTestToolbar(e);
+  for (const button of toolbar.querySelectorAll(".skipper-btn")) {
+    button.classList.toggle("pointer-hover", button === hit.button);
+  }
+  if (e.composedPath().includes(toolbar) || hit.inside) {
+    resetHideTimer();
+    return;
+  }
   if (e.clientY < SHOW_ZONE_Y) {
     showToolbar();
   } else if (e.clientY > HIDE_ZONE_Y) {
@@ -188,15 +256,30 @@ function handleMouseMove(e) {
 }
 
 // ── Fullscreen handling ──
-document.addEventListener("fullscreenchange", () => {
-  const fsEl = document.fullscreenElement;
+function getFullscreenElement() {
+  let element = document.fullscreenElement;
+  while (element?.shadowRoot?.fullscreenElement) {
+    element = element.shadowRoot.fullscreenElement;
+  }
+  return element;
+}
+
+function handleFullscreenChange() {
+  const fsEl = getFullscreenElement();
+  nativeVideoFullscreen = fsEl instanceof HTMLVideoElement;
 
   if (fsEl) {
     setActiveVideo(findVideo(fsEl));
 
-    if (toolbar.parentNode !== fsEl) {
-      fsEl.appendChild(toolbar);
-    }
+    const mount = nativeVideoFullscreen
+      ? document.documentElement
+      : fsEl.shadowRoot || fsEl;
+    if (toolbarHost.parentNode !== mount) mount.append(toolbarHost);
+    // Reopen after each fullscreen transition to put the toolbar above the new
+    // fullscreen element in the top layer.
+    if (toolbar.matches(":popover-open")) toolbar.hidePopover();
+    toolbar.showPopover();
+    applyScale(currentBaseScale);
 
     hideToolbar();
     document.removeEventListener("mousemove", handleMouseMove);
@@ -209,19 +292,28 @@ document.addEventListener("fullscreenchange", () => {
     clearTimeout(hideTimeout);
     hideTimeout = null;
 
-    if (toolbar.parentNode) {
-      toolbar.parentNode.removeChild(toolbar);
-    }
+    hideToolbar();
+    if (toolbar.matches(":popover-open")) toolbar.hidePopover();
+    toolbarHost.remove();
   }
-});
+}
+
+document.addEventListener("fullscreenchange", handleFullscreenChange);
 
 // ── Sizing Logic & Zoom Correction ──
 function applyScale(baseScale) {
-  currentBaseScale = baseScale;
+  const value = Number(baseScale);
+  currentBaseScale = Number.isFinite(value) && value > 0 ? value : 1;
 
-  const correctedScale = baseScale / window.devicePixelRatio;
+  const requestedScale = currentBaseScale / (window.devicePixelRatio || 1);
+  const fitScale = toolbar.offsetWidth > 0
+    ? Math.max(1, window.innerWidth - 24) / toolbar.offsetWidth
+    : requestedScale;
+  const correctedScale = Math.min(requestedScale, fitScale);
   toolbar.style.setProperty("--skipper-scale", String(correctedScale));
 }
+
+new ResizeObserver(() => applyScale(currentBaseScale)).observe(toolbar);
 
 chrome.storage.local.get({ scale: 1.0 }, (data) => {
   applyScale(data.scale);

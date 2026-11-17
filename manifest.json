@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "114",
   "name": "SkipBar",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Skip forward or back with one click in fullscreen video.",
   "permissions": ["storage"],
   "action": {
@@ -11,8 +12,14 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["style.css"],
+      "run_at": "document_start",
       "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["style.css"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
